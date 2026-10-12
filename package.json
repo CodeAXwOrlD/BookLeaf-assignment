@@ -11,6 +11,7 @@
     "start": "npm --prefix server start",
     "seed": "npm --prefix server run seed",
     "test": "npm --prefix server test",
-    "typecheck": "npm --prefix server run typecheck && npm --prefix web run typecheck"
+    "typecheck": "npm --prefix server run typecheck && npm --prefix web run typecheck",
+    "check:drafts": "npm --prefix server run check:drafts"
   }
 }

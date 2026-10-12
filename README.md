@@ -2,24 +2,10 @@
 
 Two portals on one codebase. **Authors** log in, see their books and royalties, raise support queries and watch replies arrive live. **BookLeaf's ops team** works a prioritised queue where every ticket is auto-classified, scored for urgency, and comes with a policy-accurate AI draft reply that a human edits before sending.
 
-> Confidential assignment submission. Keep the repository private.
-
-## Contents
-1. [Live demo and credentials](#live-demo-and-credentials)
-2. [Run it locally](#run-it-locally)
-3. [Deploy](#deploy)
-4. [Architecture and why](#architecture-and-why)
-5. [AI integration](#ai-integration)
-6. [API reference](#api-reference)
-7. [Sample-data edge cases](#sample-data-edge-cases)
-8. [Tests](#tests)
-9. [Known limitations and what I would do next](#known-limitations-and-what-i-would-do-next)
-
----
-
 ## Live demo and credentials
 
-Live URL: `<add your deployed URL here>`
+Live URL: `<add your deployed URL here>`  
+Demo video: `<add link here>`
 
 | Role | Email | Password |
 |---|---|---|
@@ -68,7 +54,9 @@ Other commands: `npm test`, `npm run typecheck`, `npm run seed -- --reset` (wipe
 | `DATABASE_URL` | Postgres URL. Empty means embedded PGlite. |
 | `DEMO_MODE` | `true` shows one-click demo accounts on the login screen. |
 | `APP_TODAY` | Pin "today" (`YYYY-MM-DD`) for payout-date maths. The sample data's last payouts are in Dec 2025, so for a coherent demo set e.g. `APP_TODAY=2025-12-15`. |
-| `LLM_PROVIDERS` | Provider order. Default `groq,gemini`. |
+| `LLM_PROVIDERS` | Provider order. Default `gemini,groq`. |
+| `LLM_DAILY_CAP` | Daily budget cap for LLM calls (default `500`). When exceeded, the system gracefully falls back to rules and templates without failing requests. |
+| `LLM_ENABLED` | Global AI kill switch (`true`/`false`, default `true`). Set to `false` during provider outages or maintenance to route all triage and drafts to rule engines. |
 | `GROQ_API_KEY`, `GEMINI_API_KEY` | Keys. Server-side only, never sent to the browser. |
 | `GROQ_MODEL_FAST/DRAFT`, `GEMINI_MODEL_FAST/DRAFT` | Model names, configurable because providers retire models. |
 | `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES`, `LLM_CONCURRENCY` | Resilience and rate-limit knobs. |
@@ -81,10 +69,10 @@ One service serves the API and the built UI, so the session cookie and the live 
 
 **Render + Neon (free tiers):**
 1. Create a Postgres database on Neon and copy its connection string.
-2. Create a Render Web Service from this repo (`render.yaml` is included). Set `DATABASE_URL`, `GROQ_API_KEY`, `GEMINI_API_KEY`. `JWT_SECRET` is generated.
+2. Create a Render Web Service from this repo (`render.yaml` is included). Set `DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`. `JWT_SECRET` is generated.
 3. First boot creates the schema and seeds the sample data automatically.
 
-Note: Render's free tier sleeps when idle, so the first request after a pause is slow. Open the URL once before sharing it.
+Keep-alive: To avoid Render free-tier idle spin-downs, configure a free monitor (e.g. UptimeRobot or Cron-job.org) to ping `https://<your-service>.onrender.com/health` every 5–10 minutes.
 
 ---
 
@@ -125,19 +113,19 @@ web/ (React + Vite + TypeScript)      server/ (Fastify + TypeScript)
 ## AI integration
 
 ### Model choice
-**Groq first, Gemini as automatic fallback, rules as the last resort.**
+**Gemini primary, Groq as automatic fallback, rules as the last resort.**
 
 | | Role | Why |
 |---|---|---|
-| Groq `openai/gpt-oss-20b` | Triage (classify + priority) | Ultra-low latency, follows JSON schema well. Small model is plenty for a 6-way label. |
-| Groq `openai/gpt-oss-120b` | Reply drafting | Rich tone and instruction-following for polished author-facing drafts. |
-| Gemini `3.5-flash-lite` / `3.5-flash` | Ultra-token-efficient primary / fallback | Minimal token consumption (35–65 prompt tokens), thinking disabled (`budget=0`) to prevent wasted reasoning tokens, high quota. |
+| Gemini `3.5-flash-lite` / `3.5-flash` | Primary triage & reply drafting | Ultra-token-efficient (35–65 prompt tokens for triage), disabled thinking (`budget=0`) to eliminate wasted reasoning tokens, high RPM quota. |
+| Groq `openai/gpt-oss-20b` | Fallback triage | Ultra-low latency, follows JSON schema well. Small model is plenty for a 6-way label. |
+| Groq `openai/gpt-oss-120b` | Fallback drafting | Rich tone and instruction-following for polished author-facing drafts. |
 
 Both have free tiers, which fits this assignment, and the code is provider-agnostic (`ai/types.ts` `Provider` interface). The earlier-generation Llama models on Groq were retired in August 2026, which is exactly why model names are environment variables. Free tiers have strict rate limits and may use data for product improvement; the sample data is synthetic, but a production system should use a paid tier with a no-training agreement.
 
 ### Two jobs, two prompts (`ai/prompts.ts`)
 1. **Triage** (every ticket, JSON out): category list with hints, a written priority rubric, four few-shot examples, temperature 0, 160-token cap. Output is parsed leniently (fenced JSON, fuzzy category names) and validated; anything invalid falls back to rules.
-2. **Draft** (only when an admin opens a ticket): persona and BookLeaf tone rules from the brief (acknowledge first, be specific, own mistakes, 48-hour timeline, end with a next step), strict rules (use only knowledge base and facts, no invented dates or amounts, never blame the author), then the KB slice, the facts block and the ticket.
+2. **Draft** (only when an admin opens a ticket): persona and BookLeaf tone rules from the brief (acknowledge first, be specific, own mistakes, 48-hour timeline, end with a next step), strict rules (use only knowledge base and facts, no invented dates, amounts, or ungrounded team names), then the KB slice, the facts block and the ticket.
 
 Prompt-injection stance: ticket text is fenced in tags and declared untrusted data in the system prompt. The AI never sends anything; a human always reviews.
 
@@ -150,14 +138,16 @@ After the model answers, deterministic rules from the knowledge base are applied
 - **De-duplicated**: two admins opening one ticket share a single in-flight call.
 - **Small prompts**: only the KB slice for the ticket's category (~150-250 tokens instead of the whole document), only the relevant book's facts, last 4 messages, internal notes never included, output capped.
 - **Right-sized models**: small model for triage, larger only for drafts.
-- **Measured**: every call is logged in `ai_usage`; the queue page shows 24-hour calls, tokens and failures.
+- **Daily call cap & Kill switch**: `LLM_DAILY_CAP` (default 500/day) tracks daily usage in `ai_usage` and trips gracefully to rule-based fallback if reached. `LLM_ENABLED=false` provides an instant operational kill switch.
+- **Route rate limits**: 10 tickets/hour for authors (`POST /tickets`), 30 redrafts/hour for admins (`POST /admin/tickets/:id/draft`) prevent abuse.
+- **Measured**: every call is logged in `ai_usage`; the queue page shows 24-hour calls, tokens, failures, and daily cap status.
 
 ### Error handling and graceful degradation
 - Per provider: timeout, retry with exponential backoff and jitter on 429/5xx/network (honours `Retry-After`), no retry on 4xx.
 - **Circuit breaker**: 3 consecutive failures park a provider for 60 s (10 min on 401/403), so a dead API does not slow every request.
 - Concurrency cap keeps free-tier requests-per-minute in check.
-- Provider chain: Groq, then Gemini.
-- If all fail or no key is set: tickets are still created instantly (AI runs after the response), classified by **keyword rules**, and the admin gets a **template draft** built from the same facts and policy. The UI says plainly which one it is ("Template draft: AI providers are unavailable").
+- **Provider chain**: Gemini, then Groq.
+- If the daily cap is hit, all providers fail, or no keys are set: tickets are still created instantly (AI runs asynchronously after the response), classified by **keyword rules**, and the admin gets a **template draft** built from the same facts and policy. The UI says plainly which one it is ("Template draft: AI providers are unavailable").
 - Tickets whose triage was interrupted by a restart are picked up again on boot.
 
 ### API key security
@@ -222,14 +212,23 @@ SLA thresholds for "overdue": Critical 24 h, High 48 h, Medium 5 days, Low 10 da
 
 ## Tests
 
-`npm test` runs 33 tests (Vitest): payout-date maths and royalty edge cases, the six sample queries from the brief against the rules classifier, lenient parsing of model output, provider failover / total-outage / circuit-breaker behaviour with mock providers, and API tests on an in-memory Postgres covering authentication, role isolation, 404-not-403, validation, the full ticket lifecycle, override tracking, internal-note secrecy and reopening.
+`npm test` runs 41 tests (Vitest): payout-date maths and royalty edge cases, the six sample queries from the brief against the rules classifier, lenient parsing of model output, provider failover / total-outage / circuit-breaker behaviour with mock providers, route rate limits, daily call cap and kill switch behavior, and API tests on an in-memory Postgres covering authentication, role isolation, 404-not-403, validation, the full ticket lifecycle, override tracking, internal-note secrecy, and ticket reopening.
 
-Live Groq and Gemini calls are not exercised by the automated tests (they need keys); the gateway is tested against mock providers.
+**Automated Live Edge-Case Verification (`npm run check:drafts`)**:
+A dedicated verification script checks live Gemini and Groq outputs across 6 canonical prompt scenarios (3 runs per provider) against grounded facts and the BookLeaf knowledge base:
+```bash
+npm run check:drafts
+```
+It programmatically asserts across all runs:
+- Zero hallucinated numbers or currency amounts (every cited figure matches `domain/facts.ts`).
+- Zero ungrounded department names (bans "finance team", "accounts team", etc.; restricts to "our team" or KB-approved teams).
+- Author records (e.g. ₹2,546 pending for Ananya, ₹850 rollover for Kavita, *In Production - Cover Design* for Sneha) are reflected accurately.
 
 ---
 
 ## Known limitations and what I would do next
 
+- **Shared free-tier quota**: On high traffic or public demo days, free-tier provider limits can be exhausted. The portal mitigates this with `LLM_DAILY_CAP` (default 500/day), per-route rate limits, and seamless fallback to deterministic keyword triage and template drafts so author requests never fail.
 - **Attachments** are UI plus metadata only. Next: signed-URL upload to object storage with virus scanning.
 - **SSE hub is in-memory**, so one server process. To scale out: Postgres `LISTEN/NOTIFY` or Redis pub/sub behind the same interface.
 - **Triage queue is in-process** with a boot-time sweep. For production: BullMQ or pg-boss with retries and dead-lettering.

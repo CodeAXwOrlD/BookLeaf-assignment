@@ -168,12 +168,20 @@ function StatsStrip({ stats, onPick }: { stats: Stats; onPick: (p: Partial<Filte
 
 function AiLine({ stats }: { stats: Stats }) {
   const a = stats.ai;
-  if (!a.providersConfigured.length) {
-    return <Notice tone="warn">No AI key is configured. Tickets are sorted with keyword rules and reply drafts start from templates. Add GROQ_API_KEY or GEMINI_API_KEY on the server to switch AI on.</Notice>;
+  if (!a.providersConfigured.length || a.enabled === false) {
+    return (
+      <Notice tone="warn">
+        {a.enabled === false ? 'AI kill switch is active (LLM_ENABLED=false).' : 'No AI key is configured.'}{' '}
+        Tickets are sorted with keyword rules and reply drafts start from templates.
+      </Notice>
+    );
   }
   const tokens = a.last24h.promptTokens + a.last24h.completionTokens;
   return (
     <p className="ailine muted">
+      {a.dailyCap !== undefined && a.todayCalls !== undefined && (
+        <span style={{ fontWeight: 600, color: 'var(--key)' }}>AI calls today: {a.todayCalls} / {a.dailyCap}. </span>
+      )}
       AI via {a.providersConfigured.join(' then ')}. Last 24 hours: {a.last24h.calls} calls, {tokens.toLocaleString('en-IN')} tokens
       {a.last24h.failures ? `, ${a.last24h.failures} failed (fallbacks covered them)` : ''}.
       Admins changed {Math.round(a.categoryOverrideRate * 100)}% of categories and {Math.round(a.priorityOverrideRate * 100)}% of priorities.

@@ -261,7 +261,7 @@ function DraftBanner({ draft, loading, stale, onRegenerate }: { draft: Draft | n
   return (
     <div className={`draftbar ${draft.source === 'template' ? 'draftbar-template' : ''}`}>
       {draft.source === 'llm'
-        ? <span>Drafted by {draft.provider} ({draft.model}). Check the facts, edit freely, then send.</span>
+        ? <span title={draft.provider && draft.model ? `${draft.provider} · ${draft.model}` : undefined} style={{ cursor: 'help' }}>AI draft · based on BookLeaf knowledge base and this author's book data</span>
         : <span>Template draft{draft.fallbackReason ? `: ${draft.fallbackReason}` : ''}. Built from the policy and this author's records, so the numbers are right.</span>}
       {stale && <span className="stale">The author replied after this draft. <button className="linklike" onClick={onRegenerate}>Redraft</button></span>}
     </div>

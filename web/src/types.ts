@@ -74,6 +74,7 @@ export interface Stats {
   ai: {
     providersConfigured: string[]; triagePending: number; categoryOverrideRate: number; priorityOverrideRate: number;
     last24h: { calls: number; promptTokens: number; completionTokens: number; failures: number };
+    dailyCap?: number; todayCalls?: number; enabled?: boolean;
   };
 }
 export interface DemoAccounts {
