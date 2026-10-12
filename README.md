@@ -4,7 +4,7 @@ Two portals on one codebase. **Authors** log in, see their books and royalties, 
 
 ## Live demo and credentials
 
-Live URL: `<add your deployed URL here>`  
+Live URL: `https://bookleaf-assignment-llzw.onrender.com`  
 Demo video: `<add link here>`
 
 | Role | Email | Password |
