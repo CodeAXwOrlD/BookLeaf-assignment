@@ -30,7 +30,18 @@ const LIST_SQL = `
 
 /** Author-facing ticket API. Every query is scoped by the author id from the signed token. */
 export async function ticketRoutes(app: FastifyInstance, ctx: Ctx) {
-  app.post('/tickets', async (req, reply) => {
+  app.post(
+    '/tickets',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 hour',
+          keyGenerator: (req) => String(req.user?.id ?? req.ip),
+        },
+      },
+    },
+    async (req, reply) => {
     const body = createSchema.parse(req.body);
     const authorId = req.user!.authorId!;
 

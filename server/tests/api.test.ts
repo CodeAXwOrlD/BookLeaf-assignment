@@ -170,4 +170,53 @@ describe('ticket lifecycle', () => {
     expect(lastRes?.json().error.code).toBe('RATE_LIMITED');
     expect(lastRes?.json().error.message).toContain('Too many requests');
   });
+  it('cap reached falls back to rules and still creates the ticket', async () => {
+    ctx.llm.setTodayCalls(ctx.config.llm.dailyCap);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tickets',
+      headers: as('ananya.reddy@email.com'),
+      payload: { bookId: 'BK005', subject: 'Cap check unavailable on Amazon', description: 'My book shows Currently Unavailable on Amazon India.' },
+    });
+    expect(res.statusCode).toBe(201);
+    const id = res.json().ticket.id;
+    await new Promise((r) => setTimeout(r, 400));
+    const admin = await app.inject({ url: `/api/v1/admin/tickets/${id}`, headers: as('admin@bookleaf.in') });
+    expect(admin.json().ticket.aiStatus).toBe('rules');
+    ctx.llm.setTodayCalls(0);
+  });
+  it('kill switch behaves the same (falls back to rules and still creates ticket)', async () => {
+    ctx.config.llm.enabled = false;
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tickets',
+      headers: as('ananya.reddy@email.com'),
+      payload: { bookId: 'BK005', subject: 'Killswitch test query', description: 'When will my book proofs be printed and delivered?' },
+    });
+    expect(res.statusCode).toBe(201);
+    const id = res.json().ticket.id;
+    await new Promise((r) => setTimeout(r, 400));
+    const admin = await app.inject({ url: `/api/v1/admin/tickets/${id}`, headers: as('admin@bookleaf.in') });
+    expect(admin.json().ticket.aiStatus).toBe('rules');
+    ctx.config.llm.enabled = true;
+  });
+  it('a 11th ticket in an hour returns 429 RATE_LIMITED', async () => {
+    for (let i = 0; i < 10; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/tickets',
+        headers: as('arjun.malhotra@email.com'),
+        payload: { bookId: 'BK010', subject: `Rate limit ticket ${i}`, description: 'Testing ticket rate limiting per user.' },
+      });
+      expect(res.statusCode).toBe(201);
+    }
+    const eleventh = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tickets',
+      headers: as('arjun.malhotra@email.com'),
+      payload: { bookId: 'BK010', subject: 'Eleventh ticket', description: 'This one must be blocked by rate limit.' },
+    });
+    expect(eleventh.statusCode).toBe(429);
+    expect(eleventh.json().error.code).toBe('RATE_LIMITED');
+  });
 });

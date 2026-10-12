@@ -16,7 +16,7 @@ const schema = z.object({
   SEED_ADMIN_PASSWORD: z.string().min(6).default('admin123'),
   APP_TODAY: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal('')),
 
-  LLM_PROVIDERS: z.string().default('groq,gemini'),
+  LLM_PROVIDERS: z.string().default('gemini,groq'),
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL_FAST: z.string().default('openai/gpt-oss-20b'),
   GROQ_MODEL_DRAFT: z.string().default('openai/gpt-oss-120b'),
@@ -28,6 +28,8 @@ const schema = z.object({
   LLM_TIMEOUT_MS: z.coerce.number().int().default(20000),
   LLM_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
   LLM_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(2),
+  LLM_DAILY_CAP: z.coerce.number().int().positive().default(500),
+  LLM_ENABLED: z.enum(['true', 'false']).default('true'),
 });
 
 export type Config = ReturnType<typeof loadConfig>;
@@ -59,6 +61,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       timeoutMs: e.LLM_TIMEOUT_MS,
       maxRetries: e.LLM_MAX_RETRIES,
       concurrency: e.LLM_CONCURRENCY,
+      dailyCap: e.LLM_DAILY_CAP,
+      enabled: e.LLM_ENABLED === 'true',
       groq: {
         apiKey: e.GROQ_API_KEY || undefined,
         modelFast: e.GROQ_MODEL_FAST,

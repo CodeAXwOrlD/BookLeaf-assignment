@@ -125,6 +125,7 @@ export async function adminRoutes(app: FastifyInstance, ctx: Ctx) {
               count(*) FILTER (WHERE NOT ok)::int AS failures
        FROM ai_usage WHERE created_at > now() - interval '24 hours'`,
     );
+    const llmStats = ctx.llm.getStats();
     return {
       tickets: {
         open: counts.open, inProgress: counts.in_progress, critical: counts.critical,
@@ -136,6 +137,9 @@ export async function adminRoutes(app: FastifyInstance, ctx: Ctx) {
         categoryOverrideRate: counts.triaged ? counts.category_overrides / counts.triaged : 0,
         priorityOverrideRate: counts.triaged ? counts.priority_overrides / counts.triaged : 0,
         last24h: { calls: usage.calls, promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens, failures: usage.failures },
+        dailyCap: llmStats.dailyCap,
+        todayCalls: llmStats.todayCalls,
+        enabled: llmStats.enabled,
       },
     };
   });
@@ -281,7 +285,18 @@ export async function adminRoutes(app: FastifyInstance, ctx: Ctx) {
     return { draft };
   });
 
-  app.post('/admin/tickets/:id/draft', async (req) => {
+  app.post(
+    '/admin/tickets/:id/draft',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 hour',
+          keyGenerator: (req) => String(req.user?.id ?? req.ip),
+        },
+      },
+    },
+    async (req) => {
     const { id } = idParam.parse(req.params);
     const { instruction } = draftSchema.parse(req.body ?? {});
     const draft = await getDraft(ctx, id, { force: true, instruction });

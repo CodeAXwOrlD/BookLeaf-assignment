@@ -152,9 +152,9 @@ function royaltyBody({ description, focus: b }: TemplateCtx, title: string): str
   const next = `The next payout is due by ${fmtDate(b.nextPayoutDue)}.`;
   switch (b.royalty.code) {
     case 'never_paid_overdue':
-      return `Thank you for raising this, and I'm sorry: your first payout for ${title} is overdue, and that is on us. Our records show ${inr(b.pending)} pending and no payout since publication; it was due by ${fmtDate(b.royalty.dueBy)}. I'm escalating this to our payments team now and we will confirm your transfer date within 48 hours.\n\nPlease also check that your bank details are linked in your dashboard so nothing holds the transfer up.`;
+      return `Thank you for raising this, and I'm sorry: your first payout for ${title} is overdue, and that is on us. Our records show ${inr(b.pending)} pending and no payout since publication; it was due by ${fmtDate(b.royalty.dueBy)}. I'm escalating this to our team now and we will confirm your transfer date within 48 hours.\n\nPlease also check that your bank details are linked in your dashboard so nothing holds the transfer up.`;
     case 'stale_since_last_payout':
-      return `Thank you for checking in. ${title} has ${inr(b.pending)} pending, and your last payout was on ${fmtDate(b.lastPayoutDate)}, which is longer than our normal quarterly cycle. I'm asking our payments team to verify whether a payout was missed, and we'll get back to you within 48 hours with the answer and a transfer date.${wantsBreakdown ? breakdown : ''}`;
+      return `Thank you for checking in. ${title} has ${inr(b.pending)} pending, and your last payout was on ${fmtDate(b.lastPayoutDate)}, which is longer than our normal quarterly cycle. I'm asking our team to verify whether a payout was missed, and we'll get back to you within 48 hours with the answer and a transfer date.${wantsBreakdown ? breakdown : ''}`;
     case 'below_threshold':
       return `Thank you for asking. ${title} has ${inr(b.pending)} in royalties so far, which is under our ${inr(1000)} minimum payout threshold, so it rolls over to the next quarter instead of being paid now. Nothing is late; once the total passes ${inr(1000)} it is paid within 45 days of that quarter's end. ${next}${wantsBreakdown ? breakdown : ''}`;
     case 'first_payout_due':

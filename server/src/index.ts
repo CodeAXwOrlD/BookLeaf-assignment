@@ -12,6 +12,10 @@ async function main() {
   const db = await createDb(config);
   const hub = new Hub();
   const llm = createLlm(config.llm);
+  const [todayUsage] = await db.query<{ count: number }>(
+    `SELECT count(*)::int AS count FROM ai_usage WHERE created_at >= (now() AT TIME ZONE 'UTC')::date`
+  ).catch(() => [{ count: 0 }]);
+  llm.setTodayCalls(todayUsage?.count ?? 0);
 
   const ctx: Ctx = {
     config, db, llm, hub,

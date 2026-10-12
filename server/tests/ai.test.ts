@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyPolicyFloors, ruleClassify } from '../src/ai/fallback';
+import { applyPolicyFloors, ruleClassify, templateDraft } from '../src/ai/fallback';
 import { createLlm } from '../src/ai/llm';
 import { parseTriageOutput } from '../src/ai/triage';
 import { LlmUnavailableError, ProviderError, type Provider } from '../src/ai/types';
@@ -45,7 +45,7 @@ describe('model output parsing', () => {
 });
 
 describe('LLM gateway degradation', () => {
-  const cfg = { providers: [], timeoutMs: 500, maxRetries: 1, concurrency: 2, groq: {} as any, gemini: {} as any };
+  const cfg = { providers: [], timeoutMs: 500, maxRetries: 1, concurrency: 2, dailyCap: 500, enabled: true, groq: {} as any, gemini: {} as any };
   const mk = (name: string, impl: () => Promise<any>): Provider => ({
     name, isConfigured: () => true, modelFor: () => 'm', call: impl,
   });
@@ -67,5 +67,52 @@ describe('LLM gateway degradation', () => {
     const llm = createLlm(cfg, [a]);
     for (let i = 0; i < 5; i++) await llm.generate(req).catch(() => {});
     expect(calls).toBe(3);
+  });
+});
+
+describe('template draft team naming', () => {
+  it('never invents departments like finance team or accounts team', () => {
+    const categories: ('Royalty & Payments' | 'ISBN & Metadata Issues' | 'Printing & Quality' | 'Distribution & Availability' | 'Book Status & Production Updates' | 'General Inquiry')[] = [
+      'Royalty & Payments',
+      'ISBN & Metadata Issues',
+      'Printing & Quality',
+      'Distribution & Availability',
+      'Book Status & Production Updates',
+      'General Inquiry',
+    ];
+    for (const cat of categories) {
+      const draftWithoutBook = templateDraft(cat, {
+        firstName: 'Ananya',
+        subject: 'Payment overdue',
+        description: 'Payment overdue, need help with accounts and finance breakdown',
+        focus: undefined,
+      });
+      expect(draftWithoutBook.toLowerCase()).not.toContain('finance team');
+      expect(draftWithoutBook.toLowerCase()).not.toContain('accounts team');
+      expect(draftWithoutBook.toLowerCase()).not.toContain('payments team');
+
+      const mockBook: any = {
+        bookId: 'BK005',
+        title: 'Between Two Temples',
+        status: 'Published & Live',
+        isPublished: true,
+        platforms: ['Amazon India'],
+        pending: 2546,
+        earned: 2546,
+        paid: 0,
+        nextPayoutDue: '2025-11-15',
+        lastPayoutDate: null,
+        royalty: { code: 'never_paid_overdue', dueBy: '2024-11-15' },
+      };
+      const draftWithBook = templateDraft(cat, {
+        firstName: 'Ananya',
+        subject: 'Where is my money?',
+        description: 'Where is my money?',
+        focus: mockBook,
+      });
+      expect(draftWithBook.toLowerCase()).not.toContain('finance team');
+      expect(draftWithBook.toLowerCase()).not.toContain('accounts team');
+      expect(draftWithBook.toLowerCase()).not.toContain('payments team');
+    }
   });
 });

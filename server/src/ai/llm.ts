@@ -49,6 +49,8 @@ export interface LlmGateway {
   /** Names of providers that have an API key configured. */
   configured(): string[];
   generate(req: LlmRequest): Promise<LlmResult>;
+  getStats(): { todayCalls: number; dailyCap: number; enabled: boolean };
+  setTodayCalls(n: number): void;
 }
 
 export function createLlm(config: Config['llm'], providersOverride?: Provider[]): LlmGateway {
@@ -60,6 +62,17 @@ export function createLlm(config: Config['llm'], providersOverride?: Provider[])
     providersOverride ?? config.providers.map((n) => registry[n]).filter((p): p is Provider => !!p);
   const breakers = new Map<string, Breaker>();
   const gate = new Semaphore(config.concurrency);
+
+  let todayCalls = 0;
+  let currentDay = new Date().toISOString().slice(0, 10);
+
+  const checkDay = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (today !== currentDay) {
+      currentDay = today;
+      todayCalls = 0;
+    }
+  };
 
   const breaker = (name: string) => {
     let b = breakers.get(name);
@@ -90,10 +103,34 @@ export function createLlm(config: Config['llm'], providersOverride?: Provider[])
     throw lastErr;
   }
 
+  const isEnabled = () => config.enabled !== false;
+  const getDailyCap = () => config.dailyCap ?? 500;
+
   return {
-    configured: () => providers.filter((p) => p.isConfigured()).map((p) => p.name),
+    configured: () => {
+      checkDay();
+      if (!isEnabled() || todayCalls >= getDailyCap()) return [];
+      return providers.filter((p) => p.isConfigured()).map((p) => p.name);
+    },
+
+    getStats: () => {
+      checkDay();
+      return { todayCalls, dailyCap: getDailyCap(), enabled: isEnabled() };
+    },
+
+    setTodayCalls: (n: number) => {
+      todayCalls = n;
+    },
 
     async generate(req) {
+      checkDay();
+      if (!isEnabled()) {
+        throw new LlmUnavailableError('AI kill switch is active (LLM_ENABLED=false)', ['kill switch active']);
+      }
+      if (todayCalls >= getDailyCap()) {
+        throw new LlmUnavailableError(`Daily AI cap reached (${getDailyCap()} calls per day)`, ['daily cap reached']);
+      }
+
       const attempts: string[] = [];
       for (const p of providers) {
         if (!p.isConfigured()) {
@@ -108,6 +145,7 @@ export function createLlm(config: Config['llm'], providersOverride?: Provider[])
         try {
           const result = await gate.run(() => callWithRetry(p, req));
           b.failures = 0;
+          todayCalls++;
           return result;
         } catch (e) {
           const err = e as ProviderError;
