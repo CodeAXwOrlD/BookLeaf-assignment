@@ -1,0 +1,16 @@
+{
+  "name": "bookleaf-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BookLeaf Author Support & Communication Portal",
+  "scripts": {
+    "setup": "npm --prefix server install --include=dev && npm --prefix web install --include=dev",
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "start": "npm --prefix server start",
+    "seed": "npm --prefix server run seed",
+    "test": "npm --prefix server test",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix web run typecheck"
+  }
+}

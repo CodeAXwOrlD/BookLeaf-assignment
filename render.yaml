@@ -1,0 +1,24 @@
+# One web service serves both the API and the built React app (same origin => simple cookies + SSE).
+services:
+  - type: web
+    name: bookleaf-portal
+    runtime: node
+    plan: free
+    buildCommand: npm run setup && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL        # paste a Neon / Supabase Postgres URL
+        sync: false
+      - key: DEMO_MODE
+        value: "true"            # shows one-click demo logins; set false for a real deployment
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APP_TODAY
+        value: "2025-12-15"       # pins payout-date maths to match sample data
