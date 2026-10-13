@@ -69,10 +69,10 @@ One service serves the API and the built UI, so the session cookie and the live 
 
 **Render + Neon (free tiers):**
 1. Create a Postgres database on Neon and copy its connection string.
-2. Create a Render Web Service from this repo (`render.yaml` is included). Set `DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`. `JWT_SECRET` is generated.
+2. Create a Render Web Service from this repo (`render.yaml` is included). Set `DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `APP_TODAY=2025-12-15`, `LLM_PROVIDERS=gemini,groq`. `JWT_SECRET` is generated.
 3. First boot creates the schema and seeds the sample data automatically.
 
-Keep-alive: To avoid Render free-tier idle spin-downs, configure a free monitor (e.g. UptimeRobot or Cron-job.org) to ping `https://<your-service>.onrender.com/health` every 5–10 minutes.
+Render's free tier sleeps when idle. A free UptimeRobot monitor pinging https://<your-service>.onrender.com/api/v1/health every 5 minutes keeps the service awake during review. Open the URL once before sharing.
 
 ---
 
@@ -117,7 +117,7 @@ web/ (React + Vite + TypeScript)      server/ (Fastify + TypeScript)
 
 | | Role | Why |
 |---|---|---|
-| Gemini `3.5-flash-lite` / `3.5-flash` | Primary triage & reply drafting | Ultra-token-efficient (35–65 prompt tokens for triage), disabled thinking (`budget=0`) to eliminate wasted reasoning tokens, high RPM quota. |
+| Gemini `3.5-flash-lite` / `3.5-flash` | Primary triage & reply drafting | Fast, free tier with a generous request quota; thinking disabled (budget=0) so output tokens are not spent on reasoning. |
 | Groq `openai/gpt-oss-20b` | Fallback triage | Ultra-low latency, follows JSON schema well. Small model is plenty for a 6-way label. |
 | Groq `openai/gpt-oss-120b` | Fallback drafting | Rich tone and instruction-following for polished author-facing drafts. |
 
@@ -220,9 +220,7 @@ A dedicated verification script checks live Gemini and Groq outputs across 6 can
 npm run check:drafts
 ```
 It programmatically asserts across all runs:
-- Zero hallucinated numbers or currency amounts (every cited figure matches `domain/facts.ts`).
-- Zero ungrounded department names (bans "finance team", "accounts team", etc.; restricts to "our team" or KB-approved teams).
-- Author records (e.g. ₹2,546 pending for Ananya, ₹850 rollover for Kavita, *In Production - Cover Design* for Sneha) are reflected accurately.
+For each run it flags any rupee amount, number or date in the draft that is not in the injected facts, the ticket text or the knowledge-base numbers, and flags invented team names such as 'finance team' or 'accounts team'. It exits non-zero on any flag. A labelled evaluation set is the next step.
 
 ---
 

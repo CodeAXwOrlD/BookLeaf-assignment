@@ -108,6 +108,42 @@
 .field-error { display: block; margin-top: 0.35rem; color: var(--magenta); font-size: 0.85rem; font-style: normal; font-weight: 600; }
 .counter { display: block; text-align: right; color: var(--muted); margin-top: 0.25rem; font-size: 0.82rem; }
 
+.input-with-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.input-with-action input {
+  padding-right: 2.6rem;
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-ctl);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.password-toggle-btn:hover {
+  color: var(--key);
+  background: rgba(22, 25, 28, 0.06);
+}
+.password-toggle-btn:focus-visible {
+  outline: 2px solid var(--leaf);
+  outline-offset: 1px;
+}
+
 /* ---------- surfaces ---------- */
 .sheet {
   background: #ffffff; border: 1px solid rgba(22, 25, 28, 0.08); border-radius: var(--r-sheet); padding: 2rem;

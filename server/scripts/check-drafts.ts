@@ -97,7 +97,12 @@ async function main() {
     // Build the Ground Truth Token Set
     const factsText = factsToPrompt(loaded.facts, item.book, ctx.today());
     const kbSlice = kbFor(tRow.category as Category);
-    const groundTruthRaw = `${factsText}\n${kbSlice}\n${tRow.subject}\n${tRow.description}`;
+    const thread = await db.query<{ id: number; body: string }>(
+      'SELECT id, body FROM ticket_messages WHERE ticket_id = $1 AND is_internal = FALSE ORDER BY id',
+      [tRow.id],
+    );
+    const threadText = thread.slice(-4).map((m) => m.body).join('\n');
+    const groundTruthRaw = `${factsText}\n${kbSlice}\n${tRow.subject}\n${tRow.description}\n${threadText}`;
 
     const allowedNums = new Set<string>();
     for (const token of STANDARD_POLICY_TOKENS) allowedNums.add(normalizeNum(token));

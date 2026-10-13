@@ -5,12 +5,14 @@ import { useAuth } from '../auth';
 import type { DemoAccounts } from '../types';
 import { LeafMark, Plates } from '../ui/Plates';
 import { Notice } from '../ui/Marks';
+import { Icon } from '../ui/Icon';
 
 export function Login() {
   const { user, login } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [demo, setDemo] = useState<DemoAccounts | null>(null);
@@ -103,7 +105,28 @@ export function Login() {
             </label>
             <label className="field">
               <span>Password</span>
-              <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
+              <div className="input-with-action">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowPassword((prev) => !prev);
+                  }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
+                </button>
+              </div>
             </label>
             <button className="btn btn-primary btn-block" disabled={busy || !email || !password}>
               {busy ? 'Signing in…' : 'Sign in to portal'}

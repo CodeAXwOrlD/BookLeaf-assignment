@@ -94,7 +94,7 @@ export function Books() {
             <div className="ledger-value">
               <CountUp value={totals.paid} format={inr} />
             </div>
-            <span className="ledger-sub">Settled to your verified bank account</span>
+            <span className="ledger-sub">Paid out to date</span>
           </div>
 
           <div className={`ledger-card ledger-card-pending ${totals.pending > 0 ? 'has-pending' : ''}`}>
