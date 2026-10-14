@@ -5,7 +5,7 @@ Two portals on one codebase. **Authors** log in, see their books and royalties, 
 ## Live demo and credentials
 
 Live URL: `https://bookleaf-assignment-llzw.onrender.com`  
-Demo video: `<add link here>`
+Demo video: [Watch 15-min Walkthrough (Google Drive)](https://drive.google.com/file/d/19ORR3hVF920JPi8dlq2QRwuJNWR5Bw_G/view?usp=sharing)
 
 | Role | Email | Password |
 |---|---|---|
@@ -19,6 +19,45 @@ Good records to try:
 - **Ananya Reddy** (`BK005`): never paid, ₹2,546 pending, overdue. The draft owns it and escalates with a 48-hour timeline.
 - **Kavita Deshmukh** (`BK016`): ₹850 pending, below the ₹1,000 threshold. The draft explains the rollover and does not call it late.
 - **Sneha Kulkarni** (`BK013`) and **Kavita** (`BK015`): books still in production. The books page shows a stage tracker instead of royalty fields.
+
+---
+
+## Visual Walkthrough & Core Interfaces
+
+### 1. Unified Authentication & Persona Auto-Fill
+Single sign-in entrypoint with one-click demo personas (edge cases pre-configured) and interactive password visibility toggle.
+![Login & Persona Selector](docs/screenshots/01-login-screen.png)
+
+---
+
+### 2. Author Portal
+
+#### Royalty Ledger & Live Book Shelf
+Complete royalty reconciliation showing all-time earned, "Paid out to date", and overdue pending balances with direct edge-case flags (e.g. Ananya Reddy's overdue BK005 balance).
+![Author Dashboard & Royalty Ledger](docs/screenshots/02-author-dashboard-ledger.png)
+
+#### In-Production Stage Tracker
+When a book is in progress (e.g. Sneha Kulkarni's *Midnight in Mysore* / BK013), the portal automatically adapts from financial tables to an active 9-stage production timeline.
+![Author Production Stage Tracker](docs/screenshots/03-author-production-tracker.png)
+
+#### Author Query Submission & Live Support Thread
+Authors submit queries with book association and attachments; replies and status changes appear live via Server-Sent Events (SSE) without manual page reloads.
+
+| New Query Submission | Real-Time Ticket Thread |
+|:---:|:---:|
+| ![New Query Form](docs/screenshots/04-author-new-query.png) | ![Author Ticket Thread](docs/screenshots/05-author-ticket-thread.png) |
+
+---
+
+### 3. Operations & Support Desk (Admin)
+
+#### Prioritised SLA Queue & Built-in Triage Accuracy
+Tickets are dynamically ordered by SLA urgency (Critical 24h, High 48h, Medium 5d, Low 10d). Displays category, priority, AI reasoning snippets, daily quota tracking (`4 / 500` calls), and manual override indicators (`edited` badge).
+![Operations Support Queue](docs/screenshots/06-admin-operations-queue.png)
+
+#### Fact-Grounded AI Drafting Workbench
+On opening a ticket, the AI generates a draft reply grounded strictly in deterministic author facts and category-specific knowledge base policies. Includes redraft steering, private internal notes, and one-click resolution.
+![Admin Ticket Detail & AI Draft](docs/screenshots/07-admin-ticket-ai-draft.png)
 
 ---
 
